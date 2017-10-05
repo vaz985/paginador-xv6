@@ -54,6 +54,14 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   return &pgtab[PTX(va)];
 }
 
+// TP2
+char * virt2real(char *va){
+  struct proc * p = myproc();
+  int real_add = (*(walkpgdir(p->pgdir, va, 0)) & 0xFFF);
+  //int real_add = (int)(walkpgdir(p->pgdir, va, 0)) >> 20;
+  return (char*)(real_add | ((int)*(va) & ( (1u<<12) - 1)) );
+}
+
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
 // be page-aligned.

@@ -90,7 +90,7 @@ sys_uptime(void)
   return xticks;
 }
 
-// Chamada do systema do TP
+// Chamada do sistema do TP
 int
 sys_date(void) 
 {
@@ -99,3 +99,12 @@ sys_date(void)
   cmostime((struct rtcdate*)ptr);
   return 0;
 }
+int
+sys_virt2real(void)
+{
+  char *va;
+  argptr(0,&va,sizeof(int));  
+  virt2real(va);
+  return 0;
+}
+
