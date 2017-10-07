@@ -361,8 +361,6 @@ copyuvmcow(pde_t *pgdir, uint sz)
   pte_t *pte;
   uint pa, i, flags;
 
-  char *mem;
-
   if((d = setupkvm()) == 0)
     return 0;
   for(i = 0; i < sz; i += PGSIZE){
@@ -371,13 +369,12 @@ copyuvmcow(pde_t *pgdir, uint sz)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
     *pte &= ~PTE_W; // Setar como READ-ONLY
+//  *pte |= PTE_COW; // Imagino que seta 1
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
       goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
-      goto bad;
+    incrementRef(pa);
   }
 
   lcr3(V2P(pgdir));
@@ -389,7 +386,47 @@ bad:
   return 0;
 }
 
+// 1 - Checar se é do usuário
+// VA usando CR2, uint va = rcr2()
+//
+// err_code layout
+// 31             4               0
+// +---+--  --+---+---+---+---+---+---+
+// |   Reserved   | I | R | U | W | P |
+// +---+--  --+---+---+---+---+---+---+
+void pgfault(uint err_code){
 
+  uint va = rcr2();
+  pte_t* pte = walkpgdir(myproc()->pgdir, (void*)va, 0);
+
+  // is User || is PTE_COW
+  if((err_code & 0x004) /*|| (*pte & PTE_COW)*/) {
+    panic("Erro pgfault\n");
+  }
+  if( err_code & 0x002 ) {
+    panic("Erro. write on\n");
+  }
+
+  uint pa = PTE_ADDR(*pte);
+  uint refCount = getRefCount(pa);
+  char* mem;
+  // Criar nova page
+  if(refCount > 1) {
+    mem = kalloc(); 
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+    *pte = V2P(mem) | PTE_P | PTE_U | PTE_W;
+    decrementRef(pa);
+  }
+  // Libera escrita
+  else if(refCount == 1) {
+    *pte |= PTE_W;
+  }
+  else{
+    panic("refCount < 0\n");
+  }
+  // tlb flush
+  lcr3(V2P(myproc()->pgdir));
+}
 
 //PAGEBREAK!
 // Map user virtual address to kernel address.
