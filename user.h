@@ -24,6 +24,9 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int date(void*);
+char* virt2real(char*);
+int num_pages(void);
+int forkcow(void);
 
 // ulib.c
 int stat(char*, struct stat*);
@@ -39,5 +42,3 @@ void* malloc(uint);
 void free(void*);
 int atoi(const char*);
 
-// TP2
-char* virt2real(char *va);

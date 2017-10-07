@@ -120,6 +120,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             forkcow(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -185,7 +186,10 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-char*             virt2real(char *va);
+// vm.c tp2 specific
+char*           virt2real(char *va);
+int             num_pages(void);
+pde_t*          copyuvmcow(pde_t*, uint);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

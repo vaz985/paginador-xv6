@@ -57,9 +57,13 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
 // TP2
 char * virt2real(char *va){
   struct proc * p = myproc();
-  int real_add = (*(walkpgdir(p->pgdir, va, 0)) & 0xFFF);
-  //int real_add = (int)(walkpgdir(p->pgdir, va, 0)) >> 20;
-  return (char*)(real_add | ((int)*(va) & ( (1u<<12) - 1)) );
+  uint real_add = (*(walkpgdir(p->pgdir, va, 0)) & 0xFFF);
+  return (char*)(real_add | ((uint)*(va) & ( (1u<<12) - 1)) );
+}
+
+int num_pages(void) {
+  struct proc * p = myproc();
+  return p->sz/PGSIZE;
 }
 
 // Create PTEs for virtual addresses starting at va that refer to
@@ -349,6 +353,43 @@ bad:
   freevm(d);
   return 0;
 }
+
+pde_t*
+copyuvmcow(pde_t *pgdir, uint sz)
+{
+  pde_t *d;
+  pte_t *pte;
+  uint pa, i, flags;
+
+  char *mem;
+
+  if((d = setupkvm()) == 0)
+    return 0;
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    *pte &= ~PTE_W; // Setar como READ-ONLY
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+    if((mem = kalloc()) == 0)
+      goto bad;
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
+      goto bad;
+  }
+
+  lcr3(V2P(pgdir));
+  return d;
+
+bad:
+  freevm(d);
+  lcr3(V2P(pgdir));
+  return 0;
+}
+
+
 
 //PAGEBREAK!
 // Map user virtual address to kernel address.

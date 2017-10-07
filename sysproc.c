@@ -99,6 +99,7 @@ sys_date(void)
   cmostime((struct rtcdate*)ptr);
   return 0;
 }
+
 int
 sys_virt2real(void)
 {
@@ -106,5 +107,16 @@ sys_virt2real(void)
   argptr(0,&va,sizeof(int));  
   virt2real(va);
   return 0;
+}
+
+int
+sys_num_pages(void){
+  return num_pages();
+}
+
+int
+sys_forkcow(void)
+{
+  return forkcow();
 }
 

@@ -21,6 +21,7 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+  uint page_ref[PHYSTOP >> PGSHIFT]; // Uma pagina antes do phystop
 } kmem;
 
 // Initialization happens in two phases.
@@ -49,6 +50,7 @@ freerange(void *vstart, void *vend)
   char *p;
   p = (char*)PGROUNDUP((uint)vstart);
   for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
+    kmem.page_ref[V2P(p) >> PGSHIFT] = 0;
     kfree(p);
 }
 //PAGEBREAK: 21
@@ -64,14 +66,20 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
 
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = (struct run*)v;
-  r->next = kmem.freelist;
-  kmem.freelist = r;
+  // REF CONTROL
+  if(kmem.page_ref[V2P(v) >> PGSHIFT] > 0) { 
+    --kmem.page_ref[V2P(v) >> PGSHIFT];
+  }
+  // Acabou as page_ref e o espaco ta livre pra usar
+  if(kmem.page_ref[V2P(v) >> PGSHIFT] == 0) {
+    memset(v, 1, PGSIZE);
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -87,10 +95,22 @@ kalloc(void)
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
     kmem.freelist = r->next;
+    kmem.page_ref[V2P((char*)r) >> PGSHIFT] = 1;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;
 }
 
+void incrementRefCount(uint pa) {
+  acquire(&kmem.lock);
+  ++kmem.page_ref[pa >> PGSHIFT];
+  release(&kmem.lock);
+}
+void decrementRefCount(uint pa) {
+  acquire(&kmem.lock);
+  --kmem.page_ref[pa >> PGSHIFT];
+  release(&kmem.lock);
+}
