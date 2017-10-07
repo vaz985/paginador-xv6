@@ -369,7 +369,8 @@ copyuvmcow(pde_t *pgdir, uint sz)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
     *pte &= ~PTE_W; // Setar como READ-ONLY
-//  *pte |= PTE_COW; // Imagino que seta 1
+    *pte |= PTE_COW; // Imagino que seta 1
+    cprintf("%x\n",pte);
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
@@ -395,15 +396,18 @@ bad:
 // |   Reserved   | I | R | U | W | P |
 // +---+--  --+---+---+---+---+---+---+
 void pgfault(uint err_code){
-
+  cprintf("PGFAULT\n");
   uint va = rcr2();
   pte_t* pte = walkpgdir(myproc()->pgdir, (void*)va, 0);
+  cprintf("%x\n",pte);
 
   // is User || is PTE_COW
-  if((err_code & 0x004) /*|| (*pte & PTE_COW)*/) {
+  if((*pte & PTE_U) /*|| !(*pte & PTE_COW)*/) {
+    cprintf("%d\n",err_code);
     panic("Erro pgfault\n");
   }
-  if( err_code & 0x002 ) {
+  if(*pte & PTE_W){
+    cprintf("%d\n",err_code);
     panic("Erro. write on\n");
   }
 

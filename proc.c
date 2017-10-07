@@ -225,19 +225,16 @@ int
 forkcow(void)
 {
   int i, pid;
-  struct proc *np;
   struct proc *curproc = myproc();
+  struct proc *np;
 
+  cprintf("FORK COW\n");
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
   }
-
   // Copy process state from proc.
   if((np->pgdir = copyuvmcow(curproc->pgdir, curproc->sz)) == 0){
-    kfree(np->kstack);
-    np->kstack = 0;
-    np->state = UNUSED;
     return -1;
   }
   np->sz = curproc->sz;
@@ -254,6 +251,7 @@ forkcow(void)
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
+  cprintf("%s %s\n",curproc->name,np->name);
   pid = np->pid;
 
   acquire(&ptable.lock);

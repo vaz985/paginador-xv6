@@ -142,7 +142,7 @@ struct segdesc {
 #define PTE_PS          0x080   // Page Size
 #define PTE_MBZ         0x180   // Bits must be zero
 // Tp2
-#define PTE_COW         0x182// Bit vaca
+#define PTE_COW         0x1000// Bit vaca
 
 // Address in page table or page directory entry
 #define PTE_ADDR(pte)   ((uint)(pte) & ~0xFFF)
